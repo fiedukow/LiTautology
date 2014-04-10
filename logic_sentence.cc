@@ -60,6 +60,7 @@ LogicSPtr SimpleSentence::clone() {
 }
 
 Node* SimpleSentence::BuildTree(Node* parent) {
+  //std::cout << "SS::BT" << std::endl;
   //parent->sentences.push_back(this);
   return parent;
 }
@@ -93,6 +94,7 @@ LogicSPtr NotSentence::clone() {
 
 Node* NotSentence::BuildTree(Node* parent) {
   assert(isFinal());
+  //std::cout << "NS::BT" << std::endl;
   //parent->sentences.push_back(this);
   return parent;
 }
@@ -112,6 +114,7 @@ LogicSPtr OrSentence::clone() {
 }
 
 Node* OrSentence::BuildTree(Node* parent) {
+  //std::cout << "OR::BT" << std::endl;
   parent->sentences.remove(this);
   parent->sentences.push_back(s1);
   parent->sentences.push_back(s2);
@@ -135,6 +138,7 @@ LogicSPtr AndSentence::clone() {
 }
 
 Node* AndSentence::BuildTree(Node* parent) {
+ // std::cout << "AND::BT" << std::endl;
   parent->sentences.remove(this);
   parent->l = new Node;
   parent->r = new Node;
@@ -194,6 +198,7 @@ Node* Node::BuildTree(LogicSPtr s) {
 
 std::string Node::asString(const int level) {
   std::stringstream ss;
+  ss << "->";
   for(int i = 0; i < level; ++i) ss << "  ";
   for(auto s : sentences)
     ss << s->asString() << ";";
@@ -230,6 +235,7 @@ bool Node::isTautology() {
 }
 
 bool isTautology(LogicSPtr s) {
+  std::cout << Node::BuildTree(s->asCNF())->asString() << std::endl;
   return Node::BuildTree(s->asCNF())->isTautology(); // yet another leak
 }
 
@@ -241,8 +247,10 @@ bool testSentence(LogicSPtr s, bool ex_t, bool ex_s) {
   std::cout << "=== BEGIN OF TEST CASE ===" << std::endl;
   std::cout << s->asString() << std::endl;
   std::cout << s->asCNF()->asString() << std::endl;
-  bool tr = isTautology(s);
-  bool sr = isSatisfiable(s);
+  std::cout << "Tautology Tree:" << std::endl;
+  bool tr = isTautology(s->asCNF());
+  std::cout << "Satisfiable Tree:" << std::endl;
+  bool sr = isSatisfiable(s->asCNF());
 
   if (tr)
     std::cout << "This formula is tautology." << std::endl;
@@ -254,7 +262,7 @@ bool testSentence(LogicSPtr s, bool ex_t, bool ex_s) {
   if (ex_t == tr && ex_s == sr)
     std::cout << "[OK]" << std::endl;
   else
-    std::cout << "[WRONG]" << std::endl;
+    std::cout << "[FAILED]" << std::endl;
 
   std::cout << "=== END OF TEST CASE ===" << std::endl;
 }
@@ -263,6 +271,7 @@ void tests() {
   testSentence(NOT(EQ(S('q'), IMP(NOT(S('p')), S('q')))), false, true);
   testSentence(AND(NOT(S('p')), S('p')), false, false);
   testSentence(OR(NOT(S('p')), S('p')), true, true);
+  testSentence(EQ(IMP(IMP(OR(S('p'), S('q')), S('r')), NOT(OR(S('q'),S('r')))), NOT(S('r'))), true, true);
 }
 
 int main() {
