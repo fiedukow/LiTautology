@@ -106,7 +106,9 @@ class Node {
 public:
   Node() : l(NULL), r(NULL) {}
   std::string asString(int level = 0);
+  void continueBuilding();
   static Node* BuildTree(LogicSPtr);
+  
   bool isTautology();
   Node* l;
   Node* r;

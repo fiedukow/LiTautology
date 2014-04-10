@@ -62,6 +62,7 @@ LogicSPtr SimpleSentence::clone() {
 Node* SimpleSentence::BuildTree(Node* parent) {
   //std::cout << "SS::BT" << std::endl;
   //parent->sentences.push_back(this);
+  parent->continueBuilding();
   return parent;
 }
 
@@ -96,6 +97,7 @@ Node* NotSentence::BuildTree(Node* parent) {
   assert(isFinal());
   //std::cout << "NS::BT" << std::endl;
   //parent->sentences.push_back(this);
+  parent->continueBuilding();
   return parent;
 }
 
@@ -118,8 +120,7 @@ Node* OrSentence::BuildTree(Node* parent) {
   parent->sentences.remove(this);
   parent->sentences.push_back(s1);
   parent->sentences.push_back(s2);
-  s1->BuildTree(parent);
-  s2->BuildTree(parent);
+  parent->continueBuilding();
   return parent;
 }
 
@@ -231,6 +232,15 @@ bool Node::isTautology() {
   } else {
     assert(l != NULL && r != NULL);
     return l->isTautology() && r->isTautology();
+  }
+}
+
+void Node::continueBuilding() {
+  for (auto s : sentences) {
+    if (!s->isFinal()) {
+      s->BuildTree(this);
+      break;
+    }
   }
 }
 
