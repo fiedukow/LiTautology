@@ -18,19 +18,21 @@ using namespace Minisat;
 // ooo xxx ooo
 // ooo ooo xxx
 
-std::string genRows(const int N) {
+std::string genRows(const int N, int* n) {
   std::stringstream ss;
   for (int i = 0; i < N; ++i) {
     // every line
     // generate a1 or a2 or ... or an
     for (int j = 1; j <= N; ++j) {
-      ss << j+(N*i) << " ";
+      ss << j+(N*i) << ((j < N) ? " " : "");
     }
-    ss << std::endl;
+    ss << "  0" << std::endl;
+    (*n)++;
     // generate not aj or not ak, where j != k
     for (int j = 1; j <= N; ++j) {
       for (int k = j+1; k <= N; ++k) {
-        ss << -(j+(N*i)) << " " << -(k+(N*i)) << std::endl;
+        ss << -(j+(N*i)) << " " << -(k+(N*i)) << "  0" << std::endl;
+        (*n)++;
       }
     }
   }
@@ -40,19 +42,21 @@ std::string genRows(const int N) {
 // xoo oxo oox
 // xoo oxo oox
 // xoo oxo oox
-std::string genCols(const int N) {
+std::string genCols(const int N, int* n) {
   std::stringstream ss;
   for (int i = 1; i <= N; ++i) {
     // every column
     // generate a1 or a(1+N) or ... or a(1+N(N-1))
     for (int j = 0; j < N; ++j) {
-      ss << i+(N*j) << " ";
+      ss << i+(N*j) << ((j < N-1) ? " " : "");
     }
-    ss << std::endl;
+    ss << "  0" << std::endl;
+    (*n)++;
     // generate not aj or not ak, where j != k
     for (int j = 0; j < N; ++j) {
       for (int k = j+1; k < N; ++k) {
-        ss << -(i + N*j) << " " << -(i + N*k) << std::endl;
+        ss << -(i + N*j) << " " << -(i + N*k) << "  0" << std::endl;
+        (*n)++;
       }
     }
   }
@@ -74,13 +78,14 @@ std::string genCols(const int N) {
 // ooo ooo
 // oox ooo
 // oxo oox
-std::string genDiags(const int N) {
+std::string genDiags(const int N, int* n) {
   std::stringstream ss;
   for (int i = 1; i <= N*N; ++i) {
     for (int j = i+N+1; j <= N*N && i%N != 0; j += N+1) {
       if((j-(N+1))%N == 0)
         break;
-      ss << -i << " " << -j << std::endl;
+      ss << -i << " " << -j << "  0" << std::endl;
+      (*n)++;
     }
   }
   
@@ -88,7 +93,8 @@ std::string genDiags(const int N) {
     for (int j = i+N-1; j <= N*N; j += N-1) {
       if(j%N == 0)
         break;
-      ss << -i << " " << -j << std::endl;
+      ss << -i << " " << -j << "  0" << std::endl;
+      (*n)++;
     }
   }
   return ss.str();
@@ -96,9 +102,14 @@ std::string genDiags(const int N) {
 
 std::string genAll(const int N) {
   std::stringstream ss;
-  ss << genRows(N);
-  ss << genCols(N);
-  ss << genDiags(N);
+  int n = 0;
+  const std::string rows  = genRows (N, &n);
+  const std::string cols  = genCols (N, &n);
+  const std::string diags = genDiags(N, &n);
+  ss << "p cnf " << N*N << " " << n << std::endl;
+  ss << rows;
+  ss << cols;
+  ss << diags;
   return ss.str();
 }
 
@@ -121,15 +132,19 @@ int main(int argc, char* argv[]) {
   const int N = atoi(argv[1]);
   std::ofstream fout;
   fout.open("formula", std::ofstream::out);
+  std::cout << "Generating... " << std::endl;
   fout << genAll(N) << std::endl;
   fout.close();
   gzFile in = gzopen("formula", "rb");
 
   SimpSolver  S;
+  std::cout << "Parsing... " << std::endl;
   parse_DIMACS(in, S);
   gzclose(in);
+  std::cout << "Eliminating..." << std::endl;
   S.eliminate(true);
   vec<Lit> dummy;
+  std::cout << "Solving... " << std::endl;
   lbool ret = S.solveLimited(dummy);
   printStats(S);
   printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
