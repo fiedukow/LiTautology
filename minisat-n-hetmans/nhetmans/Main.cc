@@ -10,7 +10,7 @@
 #include "utils/ParseUtils.h"
 #include "utils/Options.h"
 #include "core/Dimacs.h"
-#include "simp/SimpSolver.h"
+#include "nhetmans/SimpSolver.h"
 
 using namespace Minisat;
 
