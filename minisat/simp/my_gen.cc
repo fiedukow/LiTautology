@@ -63,15 +63,15 @@ std::string genCols(const int N) {
 // ooo ooo
 // oox ooo
 // oxo oox
-std::string genDiag(const int N) {
+std::string genDiags(const int N) {
   std::stringstream ss;
-/*  for (int i = 1; i <= N*N; ++i) {
+  for (int i = 1; i <= N*N; ++i) {
     for (int j = i+N+1; j <= N*N && i%N != 0; j += N+1) {
       if((j-(N+1))%N == 0)
         break;
       ss << -i << " " << -j << std::endl;
     }
-  }*/
+  }
   
   for (int i = 1; i <= N*N; ++i) {
     for (int j = i+N-1; j <= N*N; j += N-1) {
@@ -83,8 +83,16 @@ std::string genDiag(const int N) {
   return ss.str();
 }
 
+std::string genAll(const int N) {
+  std::stringstream ss;
+  ss << genRows(N);
+  ss << genCols(N);
+  ss << genDiags(N);
+  return ss.str();
+}
+
 int main(int argc, char* argv[]) {
   assert(argc > 1);
   const int N = atoi(argv[1]);
-  std::cout << genDiag(N) << std::endl;
+  std::cout << genAll(N) << std::endl;
 }
