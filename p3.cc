@@ -83,7 +83,7 @@ public:
   //set of values
   void generateSoV();
   std::vector<Rule> generateRules(const std::vector<Reduct>&);
-  std::vector<Rule> generateRules(const Reduct&);
+  std::vector<Rule> generateRules(Reduct);
 
   friend std::ostream& operator<<(std::ostream& os, const Table& t);
   
@@ -149,8 +149,59 @@ std::ostream& operator<<(std::ostream& os, const std::vector<Reduct>& rds) {
   return os;
 }
 
-std::vector<Rule> generateRules(const std::vector<Reduct>&){}//TODO
-std::vector<Rule> generateRules(const Reduct&){}//TODO
+std::ostream& operator<<(std::ostream& os, const Rule& r) {
+  os << "if (";
+  int i = 0;
+  for (auto e : r.rule) {
+    i++;
+    os << e.first << " = " << e.second << (i == r.rule.size() ? "" : " && ");
+  }
+  os << ") then " << (r.decision ? "YES" : "NO");
+  return os;
+}
+
+template<class T>
+std::ostream& operator<<(std::ostream& os, const std::vector<T> v) {
+  for (const T& e : v)
+    os << e << std::endl;
+  return os;
+}
+
+std::vector<Rule> Table::generateRules(const std::vector<Reduct>& rds) {
+  std::vector<Rule> rules;
+  for (const Reduct& rd : rds) {
+    std::vector<Rule> rld = generateRules(rd);
+    rules.insert(rules.end(), rld.begin(), rld.end());
+  }
+  return rules;
+}
+
+std::vector<Rule> Table::generateRules(Reduct rd) {
+  std::vector<Rule> result;
+  int l = rd.mul.back();
+  rd.mul.pop_back();  
+  if (rd.mul.empty()) {
+    for (std::string s : sov[l]) {
+      Rule r_p;
+      r_p.rule[l] = s;
+      Rule r_n = r_p;
+      r_p.decision = true;
+      r_n.decision = false;
+      result.push_back(r_p);
+      result.push_back(r_n);
+    }
+    return result;
+  }
+  std::vector<Rule> smaller = generateRules(rd);
+  for (Rule r : smaller) {
+    for (std::string s : sov[l]) {
+      Rule nr = r;
+      nr.rule[l] = s;
+      result.push_back(nr);
+    }
+  }
+  return result;
+}
 
 DiffTable::DiffTable(const Table& t, bool info_system)
     : t(t) {
@@ -270,4 +321,6 @@ int main() {
   std::cout << dt << std::endl;
   std::vector<Reduct> diffs = dt.reducts();
   std::cout << "Redukty: " << diffs << std::endl;
+  std::vector<Rule> rules = t.generateRules(diffs);
+  std::cout << rules << std::endl;
 }
