@@ -82,6 +82,9 @@ public:
   double cover;
 };
 
+//Error Matrix Element
+enum EME { TP, TN, FP, FN };
+
 class Table {
 public:
   Table(const std::string& filePath);
@@ -89,6 +92,8 @@ public:
   void generateSoV();
   std::vector<Rule> generateRules(const std::vector<Reduct>&);
   std::vector<Rule> generateRules(Reduct);
+
+  std::map<EME, int> errorMatrix(const std::vector<Rule>&);
 
   friend std::ostream& operator<<(std::ostream& os, const Table& t);
   
@@ -215,14 +220,14 @@ std::vector<Rule> Table::generateRules(Reduct rd) {
       result.push_back(r_p);
       result.push_back(r_n);
     }
-    return result;
-  }
-  std::vector<Rule> smaller = generateRules(rd);
-  for (Rule r : smaller) {
-    for (std::string s : sov[l]) {
-      Rule nr = r;
-      nr.rule[l] = s;
-      result.push_back(nr);
+  } else {
+    std::vector<Rule> smaller = generateRules(rd);
+    for (Rule r : smaller) {
+      for (std::string s : sov[l]) {
+        Rule nr = r;
+        nr.rule[l] = s;
+        result.push_back(nr);
+      }
     }
   }
   
@@ -320,6 +325,14 @@ std::ostream& operator<<(std::ostream& os, const DiffTable& t) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, const std::map<EME, int>& eme) {
+  os << "TP | " << eme.at(TP) << std::endl;
+  os << "FP | " << eme.at(FP) << std::endl;
+  os << "TN | " << eme.at(TN) << std::endl;
+  os << "FN | " << eme.at(FN) << std::endl;
+  return os;
+}
+
 Table::Table(const std::string& filePath) {
   std::ifstream fs_in(filePath.c_str());
   std::string line;
@@ -399,6 +412,22 @@ bool clasify(const Line& l, const std::vector<Rule> rules) {
   return false; // Safer choice :)
 }
 
+EME EMEFromResults(bool expected, bool get) {
+  if (expected == true) {
+    return (get ? TP : FN);
+  } else {
+    return (get ? FP : TN);
+  }
+}
+
+std::map<EME, int> Table::errorMatrix(const std::vector<Rule>& system) {
+  std::map<EME, int> r;
+  r[TP] = r[FP] = r[TN] = r[FN] = 0;
+  for (const Line& l : lines)
+    r[EMEFromResults(l.decision, clasify(l, system))]++;
+  return r;
+}
+
 int main() {
   Table t("indec");
   std::cout << t << std::endl;
@@ -407,7 +436,9 @@ int main() {
   std::vector<Reduct> diffs = dt.reducts();
   std::cout << "Redukty: " << diffs << std::endl;
   std::vector<Rule> rules = t.generateRules(diffs);
+  std::sort(rules.begin(), rules.end());
   std::cout << rules << std::endl;
   std::vector<Rule> selected = selectRules(rules);
   std::cout << "\nWYBRANO:\n" << selected << std::endl;
+  std::cout << t.errorMatrix(selected) << std::endl;
 }
