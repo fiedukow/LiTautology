@@ -71,10 +71,15 @@ public:
 
 struct Rule {
 public:
-  bool operator()(const Line&);
+  enum RuleResult { NO, YES, DK };
+  RuleResult operator()(const Line&) const;
+  bool operator<(const Rule&) const;
+  bool operator==(const Rule&) const;
   
   std::map<int, std::string> rule;
   bool decision;
+  double quality;
+  double cover;
 };
 
 class Table {
@@ -102,6 +107,17 @@ private:
   const Table& t;
   std::vector<DiffWithId> diffs;
 };
+
+bool Rule::operator<(const Rule& r2) const {
+  if (quality < r2.quality)
+    return true;
+  if (quality == r2.quality && cover < r2.cover)
+    return true;
+  return false;
+}
+bool Rule::operator==(const Rule& r2) const {
+  return (quality == r2.quality && cover == r2.cover);
+}
 
 std::ostream& operator<<(std::ostream& os, const DiffWithId& diff) {
   os << diff.id1 << " x " << diff.id2 << ": ";
@@ -156,7 +172,8 @@ std::ostream& operator<<(std::ostream& os, const Rule& r) {
     i++;
     os << e.first << " = " << e.second << (i == r.rule.size() ? "" : " && ");
   }
-  os << ") then " << (r.decision ? "YES" : "NO");
+  os << ") then " << (r.decision ? "YES" : "NO") << "; precission = " << r.quality
+     << "; cover = " << r.cover;
   return os;
 }
 
@@ -165,6 +182,14 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T> v) {
   for (const T& e : v)
     os << e << std::endl;
   return os;
+}
+
+Rule::RuleResult Rule::operator()(const Line& l) const {
+  for (auto e : rule) {
+    if (l.info[e.first] != e.second)
+      return DK;
+  }
+  return (decision ? YES : NO);
 }
 
 std::vector<Rule> Table::generateRules(const std::vector<Reduct>& rds) {
@@ -199,6 +224,29 @@ std::vector<Rule> Table::generateRules(Reduct rd) {
       nr.rule[l] = s;
       result.push_back(nr);
     }
+  }
+  
+  //QUALITY MEASURMENT
+  for (Rule& r : result) {
+    std::map<Rule::RuleResult, int> counter;
+    for (const Line& l : lines) {
+      Rule::RuleResult rr = r(l);
+      if (rr == Rule::DK) {
+        counter[Rule::DK]++;
+      } else {
+        if (l.decision == true && rr == Rule::YES ||
+            l.decision == false && rr == Rule::NO)
+          counter[Rule::YES]++;
+        else
+          counter[Rule::NO]++;
+      }      
+    }
+    r.quality = (double)counter[Rule::YES]/((double)(counter[Rule::YES]+counter[Rule::NO]));
+    if ((counter[Rule::YES] + counter[Rule::NO]) == 0)
+      r.quality = -1;
+    r.cover = (counter[Rule::YES]+counter[Rule::NO])/((double)(counter[Rule::YES] 
+                                                              + counter[Rule::NO]
+                                                              + counter[Rule::DK]));
   }
   return result;
 }
@@ -314,6 +362,43 @@ Diff Line::diff(const Line& other) const {
   return result;
 }
 
+bool RuleCmp(const Rule& r1, const Rule& r2) {
+  if (r1.quality > r2.quality)
+    return true;
+  if (r1.quality == r2.quality && r1.cover > r2.cover)
+    return true;
+  return false;
+}
+
+const double LIMIT = 1.0;
+std::vector<Rule> selectRules(std::vector<Rule>& rules) {
+  double p = 0.0;
+  std::vector<Rule> rr;
+  std::sort(rules.begin(), rules.end(), &RuleCmp);
+  while (p < LIMIT) {
+    for (const Rule& r : rules) {
+      if (r.quality <= 0.5) {
+        p = LIMIT;
+        break;
+      }
+      rr.push_back(r);
+      p += r.cover;
+    }
+  }
+  return rr;
+}
+
+bool clasify(const Line& l, const std::vector<Rule> rules) {
+  for (const Rule& r : rules) {
+    Rule::RuleResult rr = r(l);
+    if (rr == Rule::YES)
+      return true;
+    if (rr == Rule::NO)
+      return false;
+  }
+  return false; // Safer choice :)
+}
+
 int main() {
   Table t("indec");
   std::cout << t << std::endl;
@@ -323,4 +408,6 @@ int main() {
   std::cout << "Redukty: " << diffs << std::endl;
   std::vector<Rule> rules = t.generateRules(diffs);
   std::cout << rules << std::endl;
+  std::vector<Rule> selected = selectRules(rules);
+  std::cout << "\nWYBRANO:\n" << selected << std::endl;
 }
