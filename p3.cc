@@ -1,3 +1,4 @@
+// Spagethi-coding-fest...
 #include <vector>
 #include <string>
 #include <fstream>
@@ -5,6 +6,8 @@
 #include <iostream>
 #include <ostream>
 #include <cassert>
+#include <set>
+#include <map>
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 
@@ -58,6 +61,7 @@ class Line {
 public:
   Line(const std::string& line);
   Diff diff(const Line& other) const;
+  void fillSoV(std::vector<std::set<std::string>>& toFill) const;
  
   friend std::ostream& operator<<(std::ostream& os, const Line& line);
   
@@ -65,12 +69,25 @@ public:
   bool decision;  
 };
 
+struct Rule {
+public:
+  bool operator()(const Line&);
+  
+  std::map<int, std::string> rule;
+  bool decision;
+};
+
 class Table {
 public:
   Table(const std::string& filePath);
+  //set of values
+  void generateSoV();
+  std::vector<Rule> generateRules(const std::vector<Reduct>&);
+  std::vector<Rule> generateRules(const Reduct&);
 
   friend std::ostream& operator<<(std::ostream& os, const Table& t);
-
+  
+  std::vector<std::set<std::string>> sov;
   std::vector<Line> lines;
 };
 
@@ -132,6 +149,9 @@ std::ostream& operator<<(std::ostream& os, const std::vector<Reduct>& rds) {
   return os;
 }
 
+std::vector<Rule> generateRules(const std::vector<Reduct>&){}//TODO
+std::vector<Rule> generateRules(const Reduct&){}//TODO
+
 DiffTable::DiffTable(const Table& t, bool info_system)
     : t(t) {
   for (int i = 0; i < t.lines.size(); ++i)
@@ -171,12 +191,28 @@ std::vector<Reduct> ToReducts(const std::vector<Diff>& sums) {
   return result;
 }
 
+std::vector<Reduct> reduce(std::vector<Reduct> red) {
+  // NEVER TESTED
+  for (Reduct& r : red) {
+    for (std::vector<int>::iterator i = r.mul.begin(); i != r.mul.end(); ++i) {
+      for (std::vector<int>::iterator j = i+1; j != r.mul.end();) {
+        if (*i == *j)
+          j = r.mul.erase(j);
+        else
+          j++;
+      }
+    }
+  }
+  return red;
+}
+
+
 std::vector<Reduct> DiffTable::reducts() const {
   std::vector<Diff> sums;
   for (const DiffWithId& di : diffs)
     InsertWithReduction(sums, di.diff);
   std::cout << sums << std::endl;
-  return ToReducts(sums);
+  return reduce(ToReducts(sums));
 }
 
 std::ostream& operator<<(std::ostream& os, const DiffTable& t) {
@@ -192,6 +228,24 @@ Table::Table(const std::string& filePath) {
     lines.push_back(Line(line));
   }
   fs_in.close();
+  generateSoV();
+  for (std::set<std::string> s : sov) {
+    for (std::string ss : s)
+      std::cout << ss << " ";
+    std::cout << std::endl;
+  }
+}
+
+void Table::generateSoV() {
+  for (int i = 0; i < lines[0].info.size(); ++i)
+    sov.push_back(std::set<std::string>());
+  for (const Line& l : lines)
+    l.fillSoV(sov);
+}
+
+void Line::fillSoV(std::vector<std::set<std::string>>& toFill) const {
+  for (int i = 0; i < toFill.size(); ++i)
+    toFill[i].insert(info[i]);
 }
 
 Line::Line(const std::string& line) {
